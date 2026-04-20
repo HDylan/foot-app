@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>点菜大转盘</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            min-height: 100vh;
+            background: #f8f2ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif;
+            padding: 15px;
+        }
+        h1 {
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        /* 转盘外层容器 */
+        .wrap {
+            position: relative;
+            width: 92vw;
+            max-width: 400px;
+            height: 92vw;
+            max-height: 400px;
+        }
+        /* 正圆形转盘 */
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 25px rgba(0,0,0,0.15);
+            border: 8px solid #fff;
+            /* 高速旋转+缓停动画 */
+            transition: transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+        }
+        /* 扇形区块 */
+        .item {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            top: 0;
+            right: 0;
+            transform-origin: left bottom;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* 菜品文字 完整显示 */
+        .food-name {
+            width: 80px;
+            text-align: center;
+            font-size: 14px;
+            color: #fff;
+            font-weight: 500;
+            transform-origin: center;
+        }
+        /* 顶部固定指针 */
+        .arrow {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #e64340;
+            z-index: 99;
+        }
+        /* 中间转动按钮 */
+        .btn {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: #e64340;
+            color: #fff;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(230,67,64,0.4);
+        }
+        .btn:active {
+            scale: 0.95;
+        }
+        .btn:disabled {
+            background: #999;
+        }
+        /* 结果文案 */
+        .result {
+            margin-top: 25px;
+            font-size: 20px;
+            color: #e64340;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+	<h1>婷宝专属选菜大转盘</h1>
+    <h1>今天想吃什么</h1>
+
+    <div class="wrap">
+        <div class="arrow"></div>
+        <div class="wheel" id="wheel"></div>
+        <button class="btn" id="btn">开始转动</button>
+    </div>
+
+    <div class="result" id="res">请点击按钮抽奖</div>
+
+    <script>
+        // ========== 在这里随便改菜品、增删数量 ==========
+        const foodList = [
+            "红烧肉",
+            "麻辣香锅",
+           "酸萝卜老鸭汤",
+"麻婆豆腐",
+"豇豆炒肉末",
+"酸辣/麻辣土豆丝",
+"蒜苔炒腊肉",
+"酸菜/麻辣 水煮鱼",
+"番茄丸子",
+"芋儿鸡",
+"回锅肉",
+"盐煎肉",	
+"辣子鸡",
+"面条",
+"凉拌/炒 凉粉",
+"麻辣/蒜蓉花甲",
+"麻辣/蒜蓉 小龙虾",
+"排骨，虾煲",
+"干锅",
+"姜爆兔",
+"蛙",
+"番茄鸡蛋",
+"清炒黄瓜",
+"韭菜鸡蛋",
+"莲藕排骨汤",
+"泡鸡爪",
+"盐焗虾",
+"干煸四季豆",
+"炒时蔬",
+"肉末茄子",
+"重庆火锅",
+"可乐鸡翅",
+"炒鸡",
+"豌豆尖滑肉",
+"干煸排骨",
+"蒜薹炒肉",
+"豆干肉丝",
+"土豆肉丝",
+        ];
+        // ===============================================
+
+        // 扇形配色
+        const colorArr = [
+            "#ff6b6b","#ffd43b","#51cf66","#339af0",
+            "#cc5de8","#ff922b","#20c997","#748ffc"
+        ];
+
+        const wheel = document.getElementById('wheel');
+        const btn = document.getElementById('btn');
+        const res = document.getElementById('res');
+        let isRun = false;
+        let startAngle = 0;
+
+        // 渲染转盘
+        function renderWheel() {
+            const len = foodList.length;
+            const avg = 360 / len;
+            wheel.innerHTML = '';
+
+            for(let i = 0; i < len; i++) {
+                const item = document.createElement('div');
+                item.className = 'item';
+                item.style.background = colorArr[i % colorArr.length];
+                item.style.transform = `rotate(${avg * i}deg)`;
+
+                const text = document.createElement('div');
+                text.className = 'food-name';
+                text.innerText = foodList[i];
+                text.style.transform = `rotate(${avg / 2}deg)`;
+
+                item.appendChild(text);
+                wheel.appendChild(item);
+            }
+        }
+
+        // 转动转盘
+        function runWheel() {
+            if(isRun) return;
+            isRun = true;
+            btn.disabled = true;
+            res.innerText = '转盘飞速旋转中...';
+
+            const len = foodList.length;
+            const avg = 360 / len;
+            // 多圈高速旋转 + 随机角度
+            const random = 2542 + 85;
+            startAngle += random;
+            wheel.style.transform = `rotate(${startAngle}deg)`;
+
+            // 停稳后计算结果
+            setTimeout(() => {
+                const now = startAngle % 360;
+                // 计算指针指向菜品
+                let index = Math.floor((360 - now + avg/2) % 360 / avg);
+                res.innerText = `✅ 最终选中：${foodList[index]}`;
+                isRun = false;
+                btn.disabled = false;
+            }, 5000);
+        }
+
+        btn.addEventListener('click', runWheel);
+        renderWheel();
+    </script>
+</body>
+</html>
